@@ -2,7 +2,7 @@
 
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getOnboardingStatus } from "@/lib/data/onboarding";
-import { updateStore, readStore } from "@/lib/local/db";
+import { updateStore, readStore, StoreWriteError } from "@/lib/local/db";
 import { isSupabaseConfigured } from "@/lib/mode";
 import { createClient } from "@/lib/supabase/server";
 import type { Gender, HeightUnit, Profile, WeightUnit } from "@/lib/types";
@@ -189,13 +189,20 @@ export async function updateProfileAction(
       .eq("id", user.id);
     if (error) return { error: error.message };
   } else {
-    await updateStore((store) => {
-      const profile = store.profiles.find((p) => p.id === user.id);
-      if (!profile) throw new Error("Profile not found");
-      Object.assign(profile, payload);
-      const localUser = store.users.find((u) => u.id === user.id);
-      if (localUser) localUser.name = payload.name;
-    });
+    try {
+      await updateStore((store) => {
+        const profile = store.profiles.find((p) => p.id === user.id);
+        if (!profile) throw new Error("Profile not found");
+        Object.assign(profile, payload);
+        const localUser = store.users.find((u) => u.id === user.id);
+        if (localUser) localUser.name = payload.name;
+      });
+    } catch (error) {
+      if (error instanceof StoreWriteError) return { error: error.message };
+      return {
+        error: error instanceof Error ? error.message : "Could not save profile",
+      };
+    }
   }
 
   revalidatePath("/profile");

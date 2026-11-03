@@ -1,6 +1,8 @@
 import { AuthForm } from "@/components/AuthForm";
 import { dataModeLabel } from "@/lib/mode";
 
+export const dynamic = "force-dynamic";
+
 export default function SignupPage() {
   const mode = dataModeLabel();
 

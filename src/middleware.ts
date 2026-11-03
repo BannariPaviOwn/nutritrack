@@ -3,8 +3,6 @@ import { jwtVerify } from "jose";
 import { SESSION_COOKIE } from "@/lib/auth/constants";
 import { getAuthSecret, isSupabaseConfigured } from "@/lib/mode";
 
-import { updateSession } from "@/lib/supabase/middleware";
-
 const publicPaths = new Set(["/login", "/signup"]);
 
 async function hasLocalSession(request: NextRequest): Promise<boolean> {
@@ -22,22 +20,29 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = publicPaths.has(pathname);
 
+  // Supabase path is opt-in via DATA_MODE=supabase + valid keys.
+  // Dynamic import keeps the Edge bundle free of Supabase when in local mode.
   if (isSupabaseConfigured()) {
-    const { supabaseResponse, user } = await updateSession(request);
+    try {
+      const { updateSession } = await import("@/lib/supabase/middleware");
+      const { supabaseResponse, user } = await updateSession(request);
 
-    if (!user && !isPublic && pathname !== "/") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
+      if (!user && !isPublic && pathname !== "/") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/login";
+        return NextResponse.redirect(url);
+      }
+
+      if (user && isPublic) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/today";
+        return NextResponse.redirect(url);
+      }
+
+      return supabaseResponse;
+    } catch {
+      // Fall through to local session checks rather than 500 the request.
     }
-
-    if (user && isPublic) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/today";
-      return NextResponse.redirect(url);
-    }
-
-    return supabaseResponse;
   }
 
   const loggedIn = await hasLocalSession(request);

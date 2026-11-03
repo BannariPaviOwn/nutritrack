@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 import { MEAL_PHOTO_MAX_BYTES } from "@/lib/meal-photo-limits";
-import { isSupabaseConfigured } from "@/lib/mode";
+import { isSupabaseConfigured, isVercelRuntime } from "@/lib/mode";
 import { createClient } from "@/lib/supabase/server";
 
 export {
@@ -23,7 +23,12 @@ const ALLOWED_MIME: Record<string, string> = {
   "image/gif": "gif",
 };
 
-const UPLOAD_DIR = path.join(process.cwd(), "data", "uploads", "meals");
+function mealUploadDir(): string {
+  if (isVercelRuntime()) {
+    return path.join("/tmp", "nutritrack-uploads", "meals");
+  }
+  return path.join(process.cwd(), "data", "uploads", "meals");
+}
 
 /** Safe local filename: `{userId}_{uuid}.{ext}` (no path separators). */
 const LOCAL_FILENAME_RE =
@@ -53,8 +58,9 @@ export function parseLocalMealPhotoFilename(filename: string): {
 export function localMealPhotoAbsolutePath(filename: string): string | null {
   const parsed = parseLocalMealPhotoFilename(filename);
   if (!parsed) return null;
-  const resolved = path.resolve(UPLOAD_DIR, parsed.filename);
-  if (!resolved.startsWith(path.resolve(UPLOAD_DIR) + path.sep)) return null;
+  const uploadDir = mealUploadDir();
+  const resolved = path.resolve(uploadDir, parsed.filename);
+  if (!resolved.startsWith(path.resolve(uploadDir) + path.sep)) return null;
   return resolved;
 }
 
@@ -112,8 +118,17 @@ export async function saveMealPhoto(
   if (!abs) {
     return { ok: false, error: "Could not save photo" };
   }
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
-  await fs.writeFile(abs, buffer);
+  try {
+    await fs.mkdir(mealUploadDir(), { recursive: true });
+    await fs.writeFile(abs, buffer);
+  } catch {
+    return {
+      ok: false,
+      error: isVercelRuntime()
+        ? "Photo upload is unavailable on this host right now. Log the meal without a photo, or run locally."
+        : "Could not save photo to disk",
+    };
+  }
   return { ok: true, photo_url: `/api/meal-photos/${filename}` };
 }
 

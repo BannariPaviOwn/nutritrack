@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { todayISO } from "@/lib/dates";
-import { readStore, updateStore } from "@/lib/local/db";
+import { readStore, StoreWriteError, updateStore } from "@/lib/local/db";
 import { isSupabaseConfigured } from "@/lib/mode";
 import { createClient } from "@/lib/supabase/server";
 import type { WeightLog, WeightUnit } from "@/lib/types";
@@ -107,27 +107,32 @@ export async function upsertWeightAction(
       .update({ weight_unit: weightUnit, updated_at: new Date().toISOString() })
       .eq("id", user.id);
   } else {
-    await updateStore((store) => {
-      const existing = store.weight_logs.find(
-        (w) => w.user_id === user.id && w.logged_on === logged_on,
-      );
-      if (existing) {
-        existing.weight_kg = parsed.data.weight_kg;
-      } else {
-        store.weight_logs.push({
-          id: randomUUID(),
-          user_id: user.id,
-          logged_on,
-          weight_kg: parsed.data.weight_kg,
-          created_at: new Date().toISOString(),
-        });
-      }
-      const profile = store.profiles.find((p) => p.id === user.id);
-      if (profile) {
-        profile.weight_unit = weightUnit;
-        profile.updated_at = new Date().toISOString();
-      }
-    });
+    try {
+      await updateStore((store) => {
+        const existing = store.weight_logs.find(
+          (w) => w.user_id === user.id && w.logged_on === logged_on,
+        );
+        if (existing) {
+          existing.weight_kg = parsed.data.weight_kg;
+        } else {
+          store.weight_logs.push({
+            id: randomUUID(),
+            user_id: user.id,
+            logged_on,
+            weight_kg: parsed.data.weight_kg,
+            created_at: new Date().toISOString(),
+          });
+        }
+        const profile = store.profiles.find((p) => p.id === user.id);
+        if (profile) {
+          profile.weight_unit = weightUnit;
+          profile.updated_at = new Date().toISOString();
+        }
+      });
+    } catch (error) {
+      if (error instanceof StoreWriteError) return { error: error.message };
+      throw error;
+    }
   }
 
   revalidatePath("/weight");

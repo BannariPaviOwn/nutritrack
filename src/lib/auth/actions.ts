@@ -8,7 +8,7 @@ import {
   createSessionToken,
   setSessionCookie,
 } from "@/lib/auth/session";
-import { updateStore } from "@/lib/local/db";
+import { StoreWriteError, updateStore } from "@/lib/local/db";
 import { isSupabaseConfigured } from "@/lib/mode";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
@@ -100,6 +100,9 @@ export async function signupAction(
       });
     });
   } catch (error) {
+    if (error instanceof StoreWriteError) {
+      return { error: error.message };
+    }
     return {
       error: error instanceof Error ? error.message : "Could not create account",
     };
@@ -136,20 +139,32 @@ export async function loginAction(
     redirect("/today");
   }
 
-  const { readStore } = await import("@/lib/local/db");
-  const store = await readStore();
-  const user = store.users.find((u) => u.email === email);
-  if (!user) return { error: "Invalid email or password" };
+  try {
+    const { readStore } = await import("@/lib/local/db");
+    const store = await readStore();
+    const user = store.users.find((u) => u.email === email);
+    if (!user) return { error: "Invalid email or password" };
 
-  const ok = await bcrypt.compare(password, user.password_hash);
-  if (!ok) return { error: "Invalid email or password" };
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) return { error: "Invalid email or password" };
 
-  const token = await createSessionToken({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-  });
-  await setSessionCookie(token);
+    const token = await createSessionToken({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+    });
+    await setSessionCookie(token);
+  } catch (error) {
+    if (error instanceof StoreWriteError) {
+      return { error: error.message };
+    }
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not load local account data",
+    };
+  }
   redirect("/today");
 }
 

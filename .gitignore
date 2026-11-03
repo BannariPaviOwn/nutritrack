@@ -33,6 +33,7 @@ yarn-error.log*
 .env*.local
 
 # local data store (user PII) + meal photo uploads
+# Keep data/templates/ (demo seed) tracked.
 /data/store.json
 /data/uploads/
 /public/uploads/
@@ -43,3 +44,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { todayISO } from "@/lib/dates";
-import { readStore, updateStore } from "@/lib/local/db";
+import { readStore, StoreWriteError, updateStore } from "@/lib/local/db";
 import { deleteLocalMealPhoto, saveMealPhoto } from "@/lib/meal-photos";
 import { isSupabaseConfigured } from "@/lib/mode";
 import { createClient } from "@/lib/supabase/server";
@@ -126,13 +126,18 @@ export async function addFoodAction(
     const { error } = await supabase.from("food_logs").insert(row);
     if (error) return { error: error.message };
   } else {
-    await updateStore((store) => {
-      store.food_logs.push({
-        id: randomUUID(),
-        ...row,
-        created_at: new Date().toISOString(),
+    try {
+      await updateStore((store) => {
+        store.food_logs.push({
+          id: randomUUID(),
+          ...row,
+          created_at: new Date().toISOString(),
+        });
       });
-    });
+    } catch (error) {
+      if (error instanceof StoreWriteError) return { error: error.message };
+      throw error;
+    }
   }
 
   revalidatePath("/food");

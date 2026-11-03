@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { todayISO } from "@/lib/dates";
-import { readStore, updateStore } from "@/lib/local/db";
+import { readStore, StoreWriteError, updateStore } from "@/lib/local/db";
 import { isSupabaseConfigured } from "@/lib/mode";
 import { createClient } from "@/lib/supabase/server";
 import type { StepLog } from "@/lib/types";
@@ -82,22 +82,27 @@ export async function upsertStepsAction(
     );
     if (error) return { error: error.message };
   } else {
-    await updateStore((store) => {
-      const existing = store.step_logs.find(
-        (s) => s.user_id === user.id && s.logged_on === logged_on,
-      );
-      if (existing) {
-        existing.steps = steps;
-      } else {
-        store.step_logs.push({
-          id: randomUUID(),
-          user_id: user.id,
-          logged_on,
-          steps,
-          created_at: new Date().toISOString(),
-        });
-      }
-    });
+    try {
+      await updateStore((store) => {
+        const existing = store.step_logs.find(
+          (s) => s.user_id === user.id && s.logged_on === logged_on,
+        );
+        if (existing) {
+          existing.steps = steps;
+        } else {
+          store.step_logs.push({
+            id: randomUUID(),
+            user_id: user.id,
+            logged_on,
+            steps,
+            created_at: new Date().toISOString(),
+          });
+        }
+      });
+    } catch (error) {
+      if (error instanceof StoreWriteError) return { error: error.message };
+      throw error;
+    }
   }
 
   revalidatePath("/measures");

@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getOnboardingStatus } from "@/lib/data/onboarding";
 import { todayISO } from "@/lib/dates";
-import { readStore, updateStore } from "@/lib/local/db";
+import { readStore, StoreWriteError, updateStore } from "@/lib/local/db";
 import { isSupabaseConfigured } from "@/lib/mode";
 import { createClient } from "@/lib/supabase/server";
 import type { BodyLog } from "@/lib/types";
@@ -90,26 +90,31 @@ export async function upsertBodyAction(
     );
     if (error) return { error: error.message };
   } else {
-    await updateStore((store) => {
-      const existing = store.body_logs.find(
-        (b) => b.user_id === user.id && b.logged_on === logged_on,
-      );
-      if (existing) {
-        existing.waist_in = waist_in;
-        existing.hip_in = hip_in;
-        existing.thigh_in = thigh_in;
-      } else {
-        store.body_logs.push({
-          id: randomUUID(),
-          user_id: user.id,
-          logged_on,
-          waist_in,
-          hip_in,
-          thigh_in,
-          created_at: new Date().toISOString(),
-        });
-      }
-    });
+    try {
+      await updateStore((store) => {
+        const existing = store.body_logs.find(
+          (b) => b.user_id === user.id && b.logged_on === logged_on,
+        );
+        if (existing) {
+          existing.waist_in = waist_in;
+          existing.hip_in = hip_in;
+          existing.thigh_in = thigh_in;
+        } else {
+          store.body_logs.push({
+            id: randomUUID(),
+            user_id: user.id,
+            logged_on,
+            waist_in,
+            hip_in,
+            thigh_in,
+            created_at: new Date().toISOString(),
+          });
+        }
+      });
+    } catch (error) {
+      if (error instanceof StoreWriteError) return { error: error.message };
+      throw error;
+    }
   }
 
   revalidatePath("/measures");
