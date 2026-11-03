@@ -1,5 +1,6 @@
 import { DeleteFoodButton } from "@/components/DeleteButtons";
 import { FoodForm } from "@/components/FoodForm";
+import { MealPhotoThumb } from "@/components/MealPhotoThumb";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { listFoodLogs } from "@/lib/data/food";
@@ -28,14 +29,17 @@ export default async function FoodPage() {
             {meals.map((meal) => (
               <li key={meal.id}>
                 <Card className="flex items-start justify-between gap-2 !py-3">
-                  <div>
-                    <p className="text-xs text-slate-500">
-                      {formatDisplayDate(meal.logged_on)} · {meal.meal_type}
-                    </p>
-                    <p className="font-medium text-slate-900">{meal.food_name}</p>
-                    <p className="text-sm text-slate-600">
-                      {meal.calories != null ? `${meal.calories} kcal` : "Calories not set"}
-                    </p>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <MealPhotoThumb src={meal.photo_url} alt={meal.food_name} />
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-500">
+                        {formatDisplayDate(meal.logged_on)} · {meal.meal_type}
+                      </p>
+                      <p className="font-medium text-slate-900">{meal.food_name}</p>
+                      <p className="text-sm text-slate-600">
+                        {meal.calories != null ? `${meal.calories} kcal` : "Calories not set"}
+                      </p>
+                    </div>
                   </div>
                   <DeleteFoodButton id={meal.id} />
                 </Card>

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { todayISO } from "@/lib/dates";
 import { readStore, updateStore } from "@/lib/local/db";
+import { deleteLocalMealPhoto, saveMealPhoto } from "@/lib/meal-photos";
 import { isSupabaseConfigured } from "@/lib/mode";
 import { createClient } from "@/lib/supabase/server";
 import type { FoodLog, MealType } from "@/lib/types";
@@ -25,6 +26,13 @@ function emptyToNull(value: FormDataEntryValue | null): string | null {
   return s === "" ? null : s;
 }
 
+function normalizeFoodLog(row: FoodLog): FoodLog {
+  return {
+    ...row,
+    photo_url: row.photo_url ?? null,
+  };
+}
+
 export async function listFoodLogs(limit = 40): Promise<FoodLog[]> {
   const user = await getCurrentUser();
   if (!user) return [];
@@ -39,12 +47,13 @@ export async function listFoodLogs(limit = 40): Promise<FoodLog[]> {
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) throw new Error(error.message);
-    return (data ?? []) as FoodLog[];
+    return ((data ?? []) as FoodLog[]).map(normalizeFoodLog);
   }
 
   const store = await readStore();
   return store.food_logs
     .filter((f) => f.user_id === user.id)
+    .map(normalizeFoodLog)
     .sort((a, b) => {
       const byDate = b.logged_on.localeCompare(a.logged_on);
       if (byDate !== 0) return byDate;
@@ -56,6 +65,17 @@ export async function listFoodLogs(limit = 40): Promise<FoodLog[]> {
 export async function listFoodForDate(date: string): Promise<FoodLog[]> {
   const logs = await listFoodLogs(200);
   return logs.filter((l) => l.logged_on === date);
+}
+
+export async function listFoodInRange(start: string, end: string): Promise<FoodLog[]> {
+  const logs = await listFoodLogs(400);
+  return logs
+    .filter((l) => l.logged_on >= start && l.logged_on <= end)
+    .sort((a, b) => {
+      const byDate = a.logged_on.localeCompare(b.logged_on);
+      if (byDate !== 0) return byDate;
+      return a.created_at.localeCompare(b.created_at);
+    });
 }
 
 export type FoodActionState = { error?: string; success?: string };
@@ -82,6 +102,15 @@ export async function addFoodAction(
     return { error: parsed.error.issues[0]?.message ?? "Invalid meal" };
   }
 
+  const photoEntry = formData.get("photo");
+  const photoFile =
+    photoEntry instanceof File && photoEntry.size > 0 ? photoEntry : null;
+
+  const photoResult = await saveMealPhoto(user.id, photoFile);
+  if (!photoResult.ok) {
+    return { error: photoResult.error };
+  }
+
   const row = {
     user_id: user.id,
     logged_on: parsed.data.logged_on,
@@ -89,6 +118,7 @@ export async function addFoodAction(
     food_name: parsed.data.food_name,
     calories: parsed.data.calories ?? null,
     notes: parsed.data.notes ?? null,
+    photo_url: photoResult.photo_url,
   };
 
   if (isSupabaseConfigured()) {
@@ -119,11 +149,17 @@ export async function deleteFoodAction(id: string): Promise<void> {
     const supabase = await createClient();
     await supabase.from("food_logs").delete().eq("id", id).eq("user_id", user.id);
   } else {
+    let photoUrl: string | null = null;
     await updateStore((store) => {
+      const existing = store.food_logs.find(
+        (f) => f.id === id && f.user_id === user.id,
+      );
+      photoUrl = existing?.photo_url ?? null;
       store.food_logs = store.food_logs.filter(
         (f) => !(f.id === id && f.user_id === user.id),
       );
     });
+    await deleteLocalMealPhoto(photoUrl);
   }
 
   revalidatePath("/food");

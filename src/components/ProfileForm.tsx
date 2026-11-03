@@ -1,17 +1,37 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   updateProfileAction,
   type ProfileActionState,
 } from "@/lib/data/profiles";
-import type { Profile } from "@/lib/types";
+import type { Profile, WeightUnit } from "@/lib/types";
+import { HeightFields } from "@/components/HeightFields";
+import { UnitToggle } from "@/components/UnitToggle";
 import { Alert, Button, Input, Label } from "@/components/ui";
+import { normalizeWeightUnit, toDisplayWeight } from "@/lib/units";
 
 const initial: ProfileActionState = {};
 
+const WEIGHT_OPTIONS = [
+  { value: "kg" as const, label: "Kg" },
+  { value: "lb" as const, label: "Lb" },
+];
+
 export function ProfileForm({ profile }: { profile: Profile }) {
   const [state, formAction, pending] = useActionState(updateProfileAction, initial);
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(
+    normalizeWeightUnit(profile.weight_unit),
+  );
+
+  const startDisplay =
+    profile.starting_weight_kg != null
+      ? toDisplayWeight(profile.starting_weight_kg, weightUnit)
+      : "";
+  const targetDisplay =
+    profile.target_weight_kg != null
+      ? toDisplayWeight(profile.target_weight_kg, weightUnit)
+      : "";
 
   return (
     <form action={formAction} className="space-y-4">
@@ -23,44 +43,79 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         <Label htmlFor="email">Email</Label>
         <Input id="email" value={profile.email} disabled readOnly />
       </div>
+      <fieldset>
+        <legend className="mb-1.5 block text-sm font-medium text-slate-700">
+          Gender
+        </legend>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 has-[:checked]:text-teal-900">
+            <input
+              type="radio"
+              name="gender"
+              value="male"
+              required
+              defaultChecked={profile.gender === "male"}
+              className="accent-teal-700"
+            />
+            Male
+          </label>
+          <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 has-[:checked]:text-teal-900">
+            <input
+              type="radio"
+              name="gender"
+              value="female"
+              required
+              defaultChecked={profile.gender === "female"}
+              className="accent-teal-700"
+            />
+            Female
+          </label>
+        </div>
+      </fieldset>
+
+      <HeightFields
+        heightCm={profile.height_cm}
+        heightUnit={profile.height_unit}
+      />
+
+      <UnitToggle
+        name="weight_unit"
+        legend="Weight unit"
+        value={weightUnit}
+        options={WEIGHT_OPTIONS}
+        onChange={setWeightUnit}
+      />
+
       <div>
-        <Label htmlFor="height_cm">Height (cm)</Label>
+        <Label htmlFor="starting_weight_value">
+          Starting weight ({weightUnit}, optional)
+        </Label>
         <Input
-          id="height_cm"
-          name="height_cm"
+          key={`start-${weightUnit}`}
+          id="starting_weight_value"
+          name="starting_weight_value"
           type="number"
           inputMode="decimal"
           step="0.1"
           min="1"
-          max="300"
-          defaultValue={profile.height_cm ?? ""}
-          placeholder="170"
+          max={weightUnit === "lb" ? 1100 : 500}
+          defaultValue={startDisplay}
         />
       </div>
       <div>
-        <Label htmlFor="starting_weight_kg">Starting weight (kg, optional)</Label>
+        <Label htmlFor="target_weight_value">
+          Target weight ({weightUnit}, optional)
+        </Label>
         <Input
-          id="starting_weight_kg"
-          name="starting_weight_kg"
+          key={`target-${weightUnit}`}
+          id="target_weight_value"
+          name="target_weight_value"
           type="number"
           inputMode="decimal"
           step="0.1"
           min="1"
-          max="500"
-          defaultValue={profile.starting_weight_kg ?? ""}
-        />
-      </div>
-      <div>
-        <Label htmlFor="target_weight_kg">Target weight (kg, optional)</Label>
-        <Input
-          id="target_weight_kg"
-          name="target_weight_kg"
-          type="number"
-          inputMode="decimal"
-          step="0.1"
-          min="1"
-          max="500"
-          defaultValue={profile.target_weight_kg ?? ""}
+          max={weightUnit === "lb" ? 1100 : 500}
+          defaultValue={targetDisplay}
         />
       </div>
       <div>

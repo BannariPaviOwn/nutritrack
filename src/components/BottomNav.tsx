@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/today", label: "Today", icon: TodayIcon },
-  { href: "/food", label: "Log Food", icon: FoodIcon },
+  { href: "/food", label: "Food", icon: FoodIcon },
   { href: "/weight", label: "Weight", icon: WeightIcon },
+  { href: "/measures", label: "Measures", icon: MeasuresIcon },
   { href: "/profile", label: "Profile", icon: ProfileIcon },
 ] as const;
 
@@ -15,14 +16,14 @@ export function BottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-teal-900/10 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
-      <ul className="mx-auto flex max-w-lg items-stretch justify-between px-2">
+      <ul className="mx-auto flex max-w-lg items-stretch justify-between px-1">
         {items.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <li key={href} className="flex-1">
               <Link
                 href={href}
-                className={`flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-xs font-medium transition ${
+                className={`flex min-h-16 flex-col items-center justify-center gap-0.5 px-0.5 text-[10px] font-medium transition sm:text-xs ${
                   active
                     ? "text-teal-800"
                     : "text-slate-500 hover:text-teal-700"
@@ -82,6 +83,26 @@ function WeightIcon({ active }: { active: boolean }) {
         stroke="currentColor"
         strokeWidth={active ? 2.2 : 1.7}
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function MeasuresIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 7h16M4 12h10M4 17h13"
+        stroke="currentColor"
+        strokeWidth={active ? 2.2 : 1.7}
+        strokeLinecap="round"
+      />
+      <circle
+        cx="18"
+        cy="12"
+        r="2"
+        stroke="currentColor"
+        strokeWidth={active ? 2.2 : 1.7}
       />
     </svg>
   );

@@ -17,6 +17,7 @@ const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   name: z.string().min(1).max(80).optional(),
+  gender: z.enum(["male", "female"]).optional(),
 });
 
 export type AuthState = {
@@ -32,23 +33,38 @@ export async function signupAction(
     email: String(formData.get("email") ?? "").trim().toLowerCase(),
     password: String(formData.get("password") ?? ""),
     name: String(formData.get("name") ?? "").trim() || undefined,
+    gender: String(formData.get("gender") ?? "").trim() || undefined,
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { email, password, name } = parsed.data;
+  const { email, password, name, gender } = parsed.data;
+  if (!gender) {
+    return { error: "Please select male or female" };
+  }
+
   const displayName = name ?? email.split("@")[0];
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name: displayName } },
+      options: { data: { name: displayName, gender } },
     });
     if (error) return { error: error.message };
+
+    const userId = data.user?.id;
+    if (userId) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ gender, name: displayName })
+        .eq("id", userId);
+      if (profileError) return { error: profileError.message };
+    }
+
     redirect("/today");
   }
 
@@ -72,9 +88,12 @@ export async function signupAction(
         id,
         email,
         name: displayName,
+        gender,
         height_cm: null,
+        height_unit: "cm",
         starting_weight_kg: null,
         target_weight_kg: null,
+        weight_unit: "kg",
         daily_calorie_goal: null,
         created_at: now,
         updated_at: now,

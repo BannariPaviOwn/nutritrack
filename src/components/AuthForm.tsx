@@ -46,6 +46,35 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           placeholder="At least 6 characters"
         />
       </div>
+      {mode === "signup" ? (
+        <fieldset>
+          <legend className="mb-1.5 block text-sm font-medium text-slate-700">
+            Gender
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 has-[:checked]:text-teal-900">
+              <input
+                type="radio"
+                name="gender"
+                value="male"
+                required
+                className="accent-teal-700"
+              />
+              Male
+            </label>
+            <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 has-[:checked]:text-teal-900">
+              <input
+                type="radio"
+                name="gender"
+                value="female"
+                required
+                className="accent-teal-700"
+              />
+              Female
+            </label>
+          </div>
+        </fieldset>
+      ) : null}
       {state.error ? <Alert>{state.error}</Alert> : null}
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}

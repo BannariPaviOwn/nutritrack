@@ -2,21 +2,24 @@ import { DeleteWeightButton } from "@/components/DeleteButtons";
 import { WeightForm } from "@/components/WeightForm";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { getProfile } from "@/lib/data/profiles";
 import { listWeightLogs } from "@/lib/data/weight";
 import { formatDisplayDate, todayISO } from "@/lib/dates";
+import { formatWeight, normalizeWeightUnit } from "@/lib/units";
 import { redirect } from "next/navigation";
 
 export default async function WeightPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const logs = await listWeightLogs(20);
+  const [logs, profile] = await Promise.all([listWeightLogs(20), getProfile()]);
+  const weightUnit = normalizeWeightUnit(profile?.weight_unit);
 
   return (
     <div>
       <PageHeader title="Weight" subtitle="One entry per day — re-saving updates that date." />
       <Card>
-        <WeightForm defaultDate={todayISO()} />
+        <WeightForm defaultDate={todayISO()} weightUnit={weightUnit} />
       </Card>
 
       <section className="mt-6">
@@ -30,7 +33,9 @@ export default async function WeightPage() {
                 <Card className="flex items-center justify-between gap-2 !py-3">
                   <div>
                     <p className="text-sm text-slate-500">{formatDisplayDate(log.logged_on)}</p>
-                    <p className="text-lg font-semibold text-slate-900">{log.weight_kg} kg</p>
+                    <p className="text-lg font-semibold text-slate-900">
+                      {formatWeight(log.weight_kg, weightUnit)}
+                    </p>
                   </div>
                   <DeleteWeightButton id={log.id} />
                 </Card>

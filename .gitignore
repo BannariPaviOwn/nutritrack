@@ -32,8 +32,10 @@ yarn-error.log*
 .env
 .env*.local
 
-# local data store (user PII)
+# local data store (user PII) + meal photo uploads
 /data/store.json
+/data/uploads/
+/public/uploads/
 
 # vercel
 .vercel

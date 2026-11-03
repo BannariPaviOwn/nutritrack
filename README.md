@@ -1,6 +1,6 @@
 # NutriTrack
 
-Mobile-first personal nutrition & weight tracker. Each signed-in user only sees their own profile, weight logs, and food logs.
+Mobile-first personal nutrition, measures, steps & weight tracker. Each signed-in user only sees their own data. Admins (configured by email) can open read-only patient reports.
 
 ## Stack
 
@@ -14,18 +14,37 @@ Mobile-first personal nutrition & weight tracker. Each signed-in user only sees 
 ```powershell
 cd d:\projects\nutritrack
 copy .env.example .env.local
-# Optionally set AUTH_SECRET in .env.local (a random string)
+# Set AUTH_SECRET and optionally ADMIN_EMAILS in .env.local
 npm install
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-1. Create an account on **Sign up**
-2. Set height / goals on **Profile**
-3. Use bottom nav: **Today**, **Log Food**, **Weight**, **Profile**
+1. Create an account on **Sign up** (name, email, password, **male/female**)
+2. Complete first-time setup: height + waist / hip / thigh
+3. Use bottom nav: **Today**, **Food**, **Weight**, **Measures** (body + steps), **Profile**
 
 Local data is written to `data/store.json` (gitignored). Multiple users on the same machine stay isolated by `user_id`.
+
+## Admin patient reports
+
+1. Put your account email in `.env.local`:
+
+```env
+ADMIN_EMAILS=you@example.com
+```
+
+2. Sign up / log in with that email (normal patient auth)
+3. Open **Profile → Open admin patient reports**, or go to `/admin`
+
+**List (`/admin`):** all patients with name, email, gender, height, latest weight, latest waist/hip/thigh, latest steps, join date, last activity.
+
+**Detail (`/admin/[userId]`):** profile + recent weight, measures, steps, and food (read-only).
+
+Admin reports are fully implemented for **local JSON mode**. In Supabase mode, RLS blocks cross-user reads; a service-role path is not wired yet (see `.env.example`).
+
+Admin is **not** in the patient bottom nav.
 
 ## Supabase mode (optional)
 
@@ -35,6 +54,7 @@ Local data is written to `data/store.json` (gitignored). Multiple users on the s
 
 ```env
 AUTH_SECRET=your-long-random-secret
+ADMIN_EMAILS=you@example.com
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
@@ -47,18 +67,24 @@ When both Supabase URL and anon key are set, the app uses Supabase Auth + tables
 
 | Route | Purpose |
 | --- | --- |
-| `/login`, `/signup` | Auth |
-| `/today` | Dashboard: today's weight, meals, calorie sum, BMI |
-| `/food` | Log meals + recent list |
-| `/weight` | Log daily weight + history |
-| `/profile` | Name, height, goals, logout |
-| `/history` | Recent weights + meals |
+| `/login`, `/signup` | Auth (signup requires gender) |
+| `/onboarding` | First-time gate: gender (if missing), height, waist/hip/thigh |
+| `/today` | Day / week / month dashboard |
+| `/food` | Log meals |
+| `/weight` | Log daily weight |
+| `/measures` | Waist / hip / thigh + daily steps |
+| `/profile` | Name, gender, height, goals; admin link if allowed |
+| `/history` | Recent logs |
+| `/admin` | Admin: all patients report |
+| `/admin/[userId]` | Admin: one patient detail |
 
 ## Data model
 
-- **profiles** — `id` (= user id), email, name, height_cm, starting_weight_kg, target_weight_kg, daily_calorie_goal
-- **weight_logs** — user_id, logged_on (date), weight_kg (unique per user+date)
-- **food_logs** — user_id, logged_on, meal_type (`breakfast` \| `lunch` \| `dinner` \| `snack`), food_name, calories?, notes?
+- **profiles** — id, email, name, gender (`male` \| `female`), height_cm, starting/target weight, calorie goal
+- **weight_logs** — user_id, logged_on, weight_kg (unique per user+date)
+- **body_logs** — user_id, logged_on, waist_in, hip_in, thigh_in (unique per user+date; thigh required on new logs)
+- **step_logs** — user_id, logged_on, steps (unique per user+date)
+- **food_logs** — user_id, logged_on, meal_type, food_name, calories?, notes?, photo_url?
 
 ## Scripts
 
@@ -68,7 +94,17 @@ npm run build  # production build
 npm run start  # run production build
 ```
 
+## Meal photos
+
+On **Food**, you can optionally attach a photo when logging a meal (camera on mobile via `capture`, or gallery pick). Photos are optional.
+
+- **Local mode:** files are stored under `data/uploads/meals/` and served at `/api/meal-photos/{filename}` (signed-in owner or admin only). Uploads are gitignored.
+- **Supabase mode:** files go to the `meal-photos` storage bucket; `food_logs.photo_url` stores the public URL. Run the storage notes/policies in `supabase/schema.sql` and create the bucket if needed.
+
+Large images are lightly compressed in the browser before upload (max ~3 MB).
+
 ## Notes
 
-- Do not commit `.env.local` or `data/store.json`
+- Do not commit `.env.local`, `data/store.json`, or `data/uploads/`
 - Local mode is for single-machine MVP; switch to Supabase for multi-device / shared hosting
+- Existing local users without gender are prompted on `/onboarding` (login still works)
