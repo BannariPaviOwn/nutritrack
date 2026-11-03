@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MealPhotoThumb } from "@/components/MealPhotoThumb";
 import { RangeToggle } from "@/components/RangeToggle";
+import { StepsForm } from "@/components/StepsForm";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { bmiCategory, calcBmi } from "@/lib/bmi";
@@ -182,18 +183,25 @@ async function DayView({
           ) : null}
         </Card>
 
-        <Card>
+        <Card className="sm:col-span-2">
           <div className="flex items-start justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Steps today
             </p>
-            <Link href="/measures" className="text-sm font-semibold text-teal-800">
-              {steps ? "Edit" : "Log"} →
+            <Link href="/measures#steps" className="text-sm font-semibold text-teal-800">
+              History →
             </Link>
           </div>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {steps ? formatSteps(steps.steps) : "—"}
-          </p>
+          {steps ? (
+            <p className="mt-2 text-3xl font-semibold text-slate-900">
+              {formatSteps(steps.steps)}
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">Not logged yet — steps only, no body measures.</p>
+          )}
+          <div className="mt-3">
+            <StepsForm defaultDate={today} defaultSteps={steps?.steps} />
+          </div>
         </Card>
 
         <Card>
@@ -215,7 +223,7 @@ async function DayView({
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Body measures (in)
             </p>
-            <Link href="/measures" className="text-sm font-semibold text-teal-800">
+            <Link href="/measures#body" className="text-sm font-semibold text-teal-800">
               {body ? "Edit" : "Log"} →
             </Link>
           </div>
@@ -393,7 +401,7 @@ async function PeriodView({
           {stepLogs.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500">
               No steps logged {range === "week" ? "this week" : "this month"}.{" "}
-              <Link href="/measures" className="font-semibold text-teal-800">
+              <Link href="/measures#steps" className="font-semibold text-teal-800">
                 Log steps →
               </Link>
             </p>
@@ -422,7 +430,7 @@ async function PeriodView({
           {bodies.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500">
               No waist / hip / thigh logged {range === "week" ? "this week" : "this month"}.{" "}
-              <Link href="/measures" className="font-semibold text-teal-800">
+              <Link href="/measures#body" className="font-semibold text-teal-800">
                 Log measures →
               </Link>
             </p>

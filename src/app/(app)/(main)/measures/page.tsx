@@ -24,12 +24,22 @@ export default async function MeasuresPage() {
     <div>
       <PageHeader
         title="Measures"
-        subtitle="Waist, hip, thigh, and daily steps — one set per day."
+        subtitle="Body inches and daily steps are separate — log either one anytime."
       />
-      <Card>
-        <h2 className="mb-3 text-base font-semibold text-slate-900">
-          Body (inches)
-        </h2>
+
+      <Card id="steps">
+        <h2 className="text-base font-semibold text-slate-900">Daily steps</h2>
+        <p className="mb-3 mt-1 text-sm text-slate-500">
+          Steps only — no waist, hip, or thigh needed.
+        </p>
+        <StepsForm defaultDate={today} defaultSteps={todaySteps?.steps} />
+      </Card>
+
+      <Card id="body" className="mt-4">
+        <h2 className="text-base font-semibold text-slate-900">Body (inches)</h2>
+        <p className="mb-3 mt-1 text-sm text-slate-500">
+          Waist, hip, and thigh — independent from steps.
+        </p>
         <MeasuresForm
           defaultDate={today}
           defaults={{
@@ -38,13 +48,6 @@ export default async function MeasuresPage() {
             thigh_in: todayLog?.thigh_in,
           }}
         />
-      </Card>
-
-      <Card className="mt-4">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">
-          Daily steps
-        </h2>
-        <StepsForm defaultDate={today} defaultSteps={todaySteps?.steps} />
       </Card>
 
       <section className="mt-6">
